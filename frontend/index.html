@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Virtual Try-On — Demo</title>
+  <style>
+    :root{
+      --card: #FFFFFF;
+      --accent: #B48AD6;
+      --muted: #7E7E88;
+      --radius: 14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      background: linear-gradient(180deg, #FEFBFF 0%, #F7FCF8 100%);
+      margin:0;
+      padding:48px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      min-height:100vh;
+      color:#2b2b35;
+    }
+    .wrap{
+      width: min(1320px, 100%);
+      display:grid;
+      grid-template-columns: 560px 1fr;
+      gap: 40px;
+      align-items:start;
+    }
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      padding:20px;
+      box-shadow:0 8px 30px rgba(95,84,130,0.08);
+      border: 1px solid rgba(180,138,214,0.08);
+    }
+    h1{margin:0 0 8px 0; font-size:20px; font-weight:700}
+    p.lead{margin:0 0 16px 0; color:var(--muted) }
+
+    .upload-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      margin-bottom:12px;
+    }
+
+    .drop{
+      border:2px dashed rgba(180,138,214,0.12);
+      border-radius:12px;
+      padding:14px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      cursor:pointer;
+      background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.8));
+      min-width:0;
+    }
+    .drop.dragover{
+      border-color:rgba(123,207,163,0.24);
+      box-shadow:0 6px 18px rgba(123,207,163,0.06)
+    }
+
+    .thumb{
+      width:96px;
+      height:128px;
+      background:#f3f4f6;
+      border-radius:8px;
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center
+    }
+    .thumb img{width:100%; height:100%; object-fit:cover}
+    .drop-details{flex:1; min-width:0;}
+
+    label.small{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+    input[type=file]{display:none}
+
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .ghost{
+      background:transparent;
+      border:1px solid #efe7fb;
+      padding:9px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .primary{
+      background:var(--accent);
+      color:white;
+      border:none;
+      padding:10px 16px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600
+    }
+    .primary:disabled{opacity:.7; cursor:not-allowed}
+
+    .meta{font-size:13px; color:var(--muted)}
+    .small-tag{
+      font-size:12px;
+      color:#6b7280;
+      padding:6px 10px;
+      border-radius:8px;
+      background:linear-gradient(90deg,#f6f0ff,#f0fffb);
+      border:1px solid rgba(0,0,0,0.03)
+    }
+
+    .preview-area{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .panel{flex:1; min-width:0;}
+
+    .result-box{
+      min-height:320px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:12px;
+      overflow:hidden;
+      background:linear-gradient(180deg,#fff,#fbfbff);
+      border:1px solid #f0edf7
+    }
+    .result-box img{max-width:100%; max-height:100%; object-fit:contain}
+
+    .note{font-size:13px; color:#9ca3af}
+
+    @media (max-width: 1050px){
+      .wrap{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 650px){
+      body{ padding:20px; }
+      .upload-grid{ grid-template-columns: 1fr; }
+      .preview-area{ flex-direction:column; }
+      .result-box{ min-height:240px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- LEFT CARD -->
+    <div class="card">
+      <h1>Virtual Try-On Prototype</h1>
+      <p class="lead">Upload a user photo and a clothing image. Click <strong>Try On</strong> to send files to backend.</p>
+
+      <div class="upload-grid">
+        <!-- Person -->
+        <div>
+          <div class="drop" id="drop-person" tabindex="0">
+            <div class="thumb" id="thumb-person"><span class="note">person</span></div>
+            <div class="drop-details">
+              <label class="small">Your photo</label>
+              <div class="row">
+                <input id="person-input" type="file" accept="image/*">
+                <button class="ghost" type="button" onclick="document.getElementById('person-input').click()">Upload</button>
+                <button class="ghost" type="button" onclick="clearPerson()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cloth -->
+        <div>
+          <div class="drop" id="drop-cloth" tabindex="0">
+            <div class="thumb" id="thumb-cloth"><span class="note">cloth</span></div>
+            <div class="drop-details">
+              <label class="small">Clothing image</label>
+              <div class="row">
+                <input id="cloth-input" type="file" accept="image/*">
+                <button class="ghost" type="button" onclick="document.getElementById('cloth-input').click()">Upload</button>
+                <button class="ghost" type="button" onclick="clearCloth()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center">
+        <button class="primary" id="try-btn" type="button">Try On</button>
+        <div class="meta"><span id="status">Ready</span></div>
+        <div style="margin-left:auto"><span class="small-tag">Local demo</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT CARD -->
+    <div class="card">
+      <h1>Preview & Result</h1>
+      <p class="lead">Previews of uploaded files and the output image from backend.</p>
+
+      <div class="preview-area">
+        <div class="panel">
+          <label class="small">Previews</label>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:220px; text-align:center">
+              <div class="result-box" id="preview-person-box"><span class="note">person preview</span></div>
+              <div class="meta">User</div>
+            </div>
+            <div style="flex:1; min-width:220px; text-align:center">
+              <div class="result-box" id="preview-cloth-box"><span class="note">cloth preview</span></div>
+              <div class="meta">Clothing</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <label class="small">Result</label>
+          <div style="margin-top:8px">
+            <div class="result-box" id="result-box"><span class="note">result will appear here</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---- Settings ----
+  const API_ENDPOINT = 'http://127.0.0.1:5051/api/tryon'; // backend URL
+  // --------------------
+
+  // DOM
+  const personInput = document.getElementById('person-input');
+  const clothInput = document.getElementById('cloth-input');
+  const thumbPerson = document.getElementById('thumb-person');
+  const thumbCloth = document.getElementById('thumb-cloth');
+  const previewPersonBox = document.getElementById('preview-person-box');
+  const previewClothBox = document.getElementById('preview-cloth-box');
+  const resultBox = document.getElementById('result-box');
+  const tryBtn = document.getElementById('try-btn');
+  const status = document.getElementById('status');
+
+  let personFile = null;
+  let clothFile = null;
+
+  function clearPerson(){
+    personFile = null;
+    personInput.value='';
+    thumbPerson.innerHTML = '<span class="note">person</span>';
+    previewPersonBox.innerHTML = '<span class="note">person preview</span>';
+  }
+  function clearCloth(){
+    clothFile = null;
+    clothInput.value='';
+    thumbCloth.innerHTML = '<span class="note">cloth</span>';
+    previewClothBox.innerHTML = '<span class="note">cloth preview</span>';
+  }
+
+  function fileToDataURL(file){
+    return new Promise((res, rej)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>res(fr.result);
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+  }
+
+  personInput.addEventListener('change', async(e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    personFile = f;
+    const url = await fileToDataURL(f);
+    thumbPerson.innerHTML = `<img src="${url}" alt="person">`;
+    previewPersonBox.innerHTML = `<img src="${url}" alt="person preview">`;
+  });
+
+  clothInput.addEventListener('change', async(e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    clothFile = f;
+    const url = await fileToDataURL(f);
+    thumbCloth.innerHTML = `<img src="${url}" alt="cloth">`;
+    previewClothBox.innerHTML = `<img src="${url}" alt="cloth preview">`;
+  });
+
+  // Drag & drop + click on drop zone opens picker
+  function makeDrop(dropEl, inputEl){
+    dropEl.addEventListener('dragover', (ev)=>{
+      ev.preventDefault();
+      dropEl.classList.add('dragover');
+    });
+    dropEl.addEventListener('dragleave', ()=>{
+      dropEl.classList.remove('dragover');
+    });
+    dropEl.addEventListener('drop', async(ev)=>{
+      ev.preventDefault();
+      dropEl.classList.remove('dragover');
+      const file = ev.dataTransfer.files[0];
+      if(file){
+        inputEl.files = ev.dataTransfer.files;
+        inputEl.dispatchEvent(new Event('change'));
+      }
+    });
+
+    dropEl.addEventListener('click', (ev)=>{
+      if (ev.target.closest('button')) return;
+      inputEl.click();
+    });
+  }
+
+  makeDrop(document.getElementById('drop-person'), personInput);
+  makeDrop(document.getElementById('drop-cloth'), clothInput);
+
+  // Try On click
+  tryBtn.addEventListener('click', async ()=>{
+    if(!personFile || !clothFile){
+      alert('Please upload both user photo and clothing image.');
+      return;
+    }
+    status.textContent = 'Uploading...';
+    tryBtn.disabled = true;
+
+    const fd = new FormData();
+    fd.append('person', personFile);
+    fd.append('cloth', clothFile);
+
+    try{
+      const resp = await fetch(API_ENDPOINT, { method:'POST', body: fd });
+      if(!resp.ok){
+        const txt = await resp.text();
+        throw new Error(`Server error: ${resp.status} ${txt}`);
+      }
+
+      const blob = await resp.blob();
+      const objectURL = URL.createObjectURL(blob);
+      resultBox.innerHTML = `<img src="${objectURL}" alt="result">`;
+      status.textContent = 'Done';
+    }catch(err){
+      console.error(err);
+      alert('Error: ' + err.message);
+      status.textContent = 'Error';
+    }finally{
+      tryBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

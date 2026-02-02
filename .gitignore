@@ -1,0 +1,8 @@
+backend/__*__
+backend/output/*
+backend/uploads/*
+.*
+*.pyc
+cp-vton-*/
+!.gitignore
+data/*
