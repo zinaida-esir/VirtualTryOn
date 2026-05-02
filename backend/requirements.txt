@@ -1,4 +1,10 @@
 flask
 flask-cors
 pillow
--r ../cp-vton-plus/requirements.txt
+torch>=2.0
+torchvision>=0.15
+opencv-contrib-python
+numpy
+transformers
+huggingface_hub
+safetensors
