@@ -1,0 +1,58 @@
+{
+  "architectures": [
+    "SCHPForSemanticSegmentation"
+  ],
+  "auto_map": {
+    "AutoConfig": "configuration_schp.SCHPConfig",
+    "AutoModelForSemanticSegmentation": "modeling_schp.SCHPForSemanticSegmentation"
+  },
+  "backbone": "resnet101",
+  "dtype": "float32",
+  "id2label": {
+    "0": "Background",
+    "1": "Hat",
+    "10": "Jumpsuits",
+    "11": "Scarf",
+    "12": "Skirt",
+    "13": "Face",
+    "14": "Left-arm",
+    "15": "Right-arm",
+    "16": "Left-leg",
+    "17": "Right-leg",
+    "18": "Left-shoe",
+    "19": "Right-shoe",
+    "2": "Hair",
+    "3": "Glove",
+    "4": "Sunglasses",
+    "5": "Upper-clothes",
+    "6": "Dress",
+    "7": "Coat",
+    "8": "Socks",
+    "9": "Pants"
+  },
+  "input_size": 473,
+  "label2id": {
+    "Background": "0",
+    "Coat": "7",
+    "Dress": "6",
+    "Face": "13",
+    "Glove": "3",
+    "Hair": "2",
+    "Hat": "1",
+    "Jumpsuits": "10",
+    "Left-arm": "14",
+    "Left-leg": "16",
+    "Left-shoe": "18",
+    "Pants": "9",
+    "Right-arm": "15",
+    "Right-leg": "17",
+    "Right-shoe": "19",
+    "Scarf": "11",
+    "Skirt": "12",
+    "Socks": "8",
+    "Sunglasses": "4",
+    "Upper-clothes": "5"
+  },
+  "model_type": "schp",
+  "transformers_version": "5.5.0"
+}
