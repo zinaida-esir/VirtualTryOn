@@ -104,6 +104,7 @@ def run_virtual_tryon(
             sample.cloth_mask.unsqueeze(0),
         )
         result = tensor_to_pil(out)
+        result = _restore_neck_patch(result, sample)
         result.save(output_path, quality=92)
         return output_path
 
@@ -118,6 +119,7 @@ def _save_debug(sample, debug_path: Path) -> None:
     sample.cloth_preview.save(debug_path / "debug_cloth.jpg", quality=90)
     sample.cloth_mask_preview.save(debug_path / "debug_cloth_mask.png")
     sample.person_mask_preview.save(debug_path / "debug_person_mask.png")
+    sample.neck_mask_preview.save(debug_path / "debug_neck_mask.png")
 
     def _save_tensor(t: "torch.Tensor", name: str) -> None:
         from PIL import Image as _Image
@@ -131,3 +133,22 @@ def _save_debug(sample, debug_path: Path) -> None:
     _save_tensor(sample.shape,  "debug_shape.png")
     _save_tensor(sample.pose_image, "debug_pose.png")
     _save_tensor(sample.parse_cloth_mask, "debug_parse_cloth_mask.png")
+
+
+def _restore_neck_patch(result, sample):
+    import numpy as np
+    from PIL import Image, ImageFilter
+
+    mask = sample.neck_mask[0].detach().float().cpu().clamp(0, 1).numpy()
+    if mask.max() <= 0:
+        return result
+
+    alpha = Image.fromarray((mask * 255).astype(np.uint8), "L")
+    alpha = alpha.filter(ImageFilter.GaussianBlur(1.2))
+    alpha_np = np.array(alpha).astype(np.float32) / 255.0
+    alpha_np = np.clip(alpha_np * (mask > 0.02), 0.0, 1.0)[:, :, None]
+
+    base = np.array(result.convert("RGB")).astype(np.float32)
+    original = np.array(sample.person_preview.convert("RGB")).astype(np.float32)
+    blended = base * (1.0 - alpha_np) + original * alpha_np
+    return Image.fromarray(np.clip(blended, 0, 255).astype(np.uint8), "RGB")

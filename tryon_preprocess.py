@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import os
 
 import cv2
 import numpy as np
@@ -24,6 +25,7 @@ import torchvision.transforms as T
 from PIL import Image, ImageDraw
 
 from tryon_parse_hf import parse_human_packaged
+from tryon_parse_fashn import parse_human_fashn
 from tryon_pose import estimate_pose
 
 FINE_WIDTH  = 192
@@ -40,9 +42,9 @@ _MASK_TRANSFORM = T.Compose([
 
 # LIP label groups (mirrors cp_dataset.py TOM stage)
 _LBL_HEAD_GMM = {1, 4, 13}            # hat, sunglasses, face
-_LBL_HEAD_TOM = {1, 2, 4, 9, 12, 13, 16, 17}  # adds hair, pants, skirt, legs
+_LBL_HEAD_TOM = {1, 2, 4, 9, 12, 13, 16, 17, 20}  # adds hair, pants, skirt, legs, optional neck/skin
 _LBL_CLOTHES  = {5, 6, 7}             # upper-clothes, dress, coat
-_LBL_PERSON   = set(range(1, 20))
+_LBL_PERSON   = set(range(1, 21))
 
 
 @dataclass
@@ -56,10 +58,12 @@ class PreparedTryOnInput:
     parse_cloth:         torch.Tensor   # (3, H, W) in [-1,1]
     parse_cloth_mask:    torch.Tensor   # (1, H, W) in [0,1]
     pose_image:          torch.Tensor   # (1, H, W) in [-1,1]
+    neck_mask:           torch.Tensor   # (1, H, W) in [0,1]
     person_preview:      Image.Image
     cloth_preview:       Image.Image
     cloth_mask_preview:  Image.Image
     person_mask_preview: Image.Image
+    neck_mask_preview:   Image.Image
     parse_labels:        np.ndarray
 
 
@@ -93,11 +97,11 @@ def prepare_tryon_inputs(
     # ── Step 2: LIP parsing ──────────────────────────────────────────────
     # Parse the exact same 192x256 image that becomes sample.image, so parsing
     # labels, image pixels, head, parse_cloth and VTON tensors share coordinates.
-    parse_array = parse_human_packaged(
+    parse_array = _parse_human(
         person_256,
         device=device,
         target_size=(FINE_WIDTH, FINE_HEIGHT),
-    )  # (256, 192) uint8, values 0-19
+    )  # (256, 192) uint8, LIP-like values
 
     person_mask_np = _labels_to_mask(parse_array, _LBL_PERSON)
     person_mask_np = (person_mask_np * 255).astype(np.uint8)
@@ -114,8 +118,10 @@ def prepare_tryon_inputs(
     # shape: body silhouette, down-sampled and back (like cp_dataset.py)
     shape_t      = _shape_tensor(person_mask_np)
 
-    # head tensor (TOM mode): keep reserved labels, black out everything else
-    head_t       = _head_tensor(image_t, parse_array, stage="TOM")
+    # head tensor (TOM mode): keep reserved labels and a synthetic neck patch,
+    # otherwise TOM tends to hallucinate a pale collar/neck boundary.
+    neck_mask_np = _synthetic_neck_mask(parse_array, pose_pts, person_256)
+    head_t       = _head_tensor(image_t, parse_array, stage="TOM", extra_mask=neck_mask_np)
 
     # parse_cloth_mask: labels 5, 6, 7 (upper-clothes, dress, coat)
     parse_cloth_mask_np = _labels_to_mask(parse_array, _LBL_CLOTHES)
@@ -141,10 +147,12 @@ def prepare_tryon_inputs(
         parse_cloth      = parse_cloth_t,
         parse_cloth_mask = parse_cloth_mask_t,
         pose_image       = pose_image_t,
+        neck_mask        = torch.from_numpy(neck_mask_np.astype(np.float32)).unsqueeze(0),
         person_preview   = person_256,
         cloth_preview    = cloth_256,
         cloth_mask_preview  = Image.fromarray(cloth_mask_np, "L"),
         person_mask_preview = Image.fromarray(person_mask_np, "L"),
+        neck_mask_preview   = Image.fromarray((neck_mask_np * 255).astype(np.uint8), "L"),
         parse_labels        = parse_array,
     )
 
@@ -159,9 +167,22 @@ def _shape_tensor(mask: np.ndarray) -> torch.Tensor:
     return _MASK_TRANSFORM(pil)  # [-1, 1]
 
 
+def _parse_human(image: Image.Image,
+                 *,
+                 device: str | None,
+                 target_size: tuple[int, int]) -> np.ndarray:
+    parser = os.environ.get("VTON_HUMAN_PARSER", "fashn").strip().lower()
+    if parser == "schp":
+        return parse_human_packaged(image, device=device, target_size=target_size)
+    if parser != "fashn":
+        raise ValueError("VTON_HUMAN_PARSER must be 'fashn' or 'schp'")
+    return parse_human_fashn(image, device=device, target_size=target_size)
+
+
 def _head_tensor(image_t: torch.Tensor,
                  parse_array: np.ndarray,
-                 stage: str = "TOM") -> torch.Tensor:
+                 stage: str = "TOM",
+                 extra_mask: np.ndarray | None = None) -> torch.Tensor:
     """
     im_h in cp_dataset.py:  im * phead  -  (1 - phead)
     Reserved labels:
@@ -170,8 +191,69 @@ def _head_tensor(image_t: torch.Tensor,
     """
     labels = _LBL_HEAD_TOM if stage == "TOM" else _LBL_HEAD_GMM
     phead = _labels_to_mask(parse_array, labels).astype(np.float32)
+    if extra_mask is not None:
+        phead = np.maximum(phead, extra_mask.astype(np.float32))
     p = torch.from_numpy(phead).unsqueeze(0)   # (1, H, W)  in {0, 1}
     return image_t * p - (1.0 - p)            # [-1, 1]
+
+
+def _synthetic_neck_mask(parse_array: np.ndarray,
+                         pose_points: np.ndarray | None,
+                         image: Image.Image) -> np.ndarray:
+    """Preserve the original neck/chin skin region for TOM.
+
+    LIP parsers often do not expose CP-VTON+'s added label 20
+    (skin/neck/chest). We synthesize a conservative neck patch from the face
+    label and OpenPose neck point so the renderer cannot repaint it.
+    """
+    face = parse_array == 13
+    ys, xs = np.where(face)
+    mask = np.zeros_like(parse_array, dtype=np.float32)
+    if len(xs) == 0:
+        return mask
+
+    x1, x2 = int(xs.min()), int(xs.max())
+    y1, y2 = int(ys.min()), int(ys.max())
+    face_w = max(1, x2 - x1)
+    face_h = max(1, y2 - y1)
+    center_x = int((x1 + x2) / 2)
+
+    neck_y = y2 + int(0.35 * face_h)
+    if pose_points is not None and pose_points.shape[0] > 1 and pose_points[1, 2] > 0:
+        neck_y = int(pose_points[1, 1])
+
+    top_y = max(0, y2 - int(0.08 * face_h))
+    bottom_y = min(parse_array.shape[0] - 1, max(neck_y + int(0.18 * face_h), y2 + int(0.35 * face_h)))
+    top_half = max(2, int(0.22 * face_w))
+    bottom_half = max(top_half + 1, int(0.38 * face_w))
+
+    polygon = np.array([
+        [center_x - top_half, top_y],
+        [center_x + top_half, top_y],
+        [center_x + bottom_half, bottom_y],
+        [center_x - bottom_half, bottom_y],
+    ], dtype=np.int32)
+    cv2.fillPoly(mask, [polygon], 1.0)
+    mask = mask * _skin_color_mask(image, face, mask > 0)
+    mask = cv2.GaussianBlur(mask, (5, 5), 0)
+    return np.clip(mask, 0.0, 1.0)
+
+
+def _skin_color_mask(image: Image.Image,
+                     face_mask: np.ndarray,
+                     candidate_mask: np.ndarray) -> np.ndarray:
+    rgb = np.array(image.convert("RGB"))
+    if face_mask.sum() < 8:
+        return candidate_mask.astype(np.float32)
+
+    ycrcb = cv2.cvtColor(rgb, cv2.COLOR_RGB2YCrCb).astype(np.float32)
+    face_pixels = ycrcb[face_mask]
+    ref = np.median(face_pixels[:, 1:3], axis=0)
+    chroma_dist = np.linalg.norm(ycrcb[:, :, 1:3] - ref[None, None, :], axis=2)
+    luminance = ycrcb[:, :, 0]
+    skin = (chroma_dist < 24) & (luminance > 45) & candidate_mask
+    skin = cv2.morphologyEx(skin.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    return skin.astype(np.float32)
 
 
 def _pose_tensor(points: np.ndarray,

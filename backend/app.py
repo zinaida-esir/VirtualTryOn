@@ -3,6 +3,17 @@ from flask_cors import CORS
 from pathlib import Path
 import sys
 import uuid
+import os
+try:
+    import certifi
+except ImportError:
+    certifi = None
+
+if certifi is not None:
+    ca_bundle = certifi.where()
+    os.environ.setdefault("SSL_CERT_FILE", ca_bundle)
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", ca_bundle)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:

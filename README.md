@@ -16,7 +16,8 @@ The main backend flow is:
 backend/app.py
   -> tryon_pipeline.run_virtual_tryon()
   -> tryon_preprocess.prepare_tryon_inputs()
-       - SCHP LIP human parsing from models/schp_hf
+       - FASHN human parsing by default, mapped to CP-VTON+/LIP labels
+       - optional SCHP LIP human parsing from models/schp_hf
        - Keypoint R-CNN pose estimation
        - OpenCV garment mask
        - CP-VTON+ tensors: image, head, shape, pose, cloth, cloth_mask
@@ -25,9 +26,10 @@ backend/app.py
        - TOM render
 ```
 
-The old experimental parser path was removed. The only SCHP parser used by the
-project is `tryon_parse_hf.py`, which loads the packaged local model from
-`models/schp_hf`.
+Set `VTON_HUMAN_PARSER=schp` to use the packaged SCHP parser instead of FASHN.
+The SCHP path is `tryon_parse_hf.py`, which loads the packaged local model from
+`models/schp_hf`. The FASHN path is `tryon_parse_fashn.py`; on first use it may
+download model weights through Hugging Face.
 
 ## Required Files
 

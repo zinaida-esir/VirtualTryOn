@@ -7,3 +7,5 @@ opencv-python
 numpy
 transformers
 safetensors
+fashn-human-parser
+certifi
