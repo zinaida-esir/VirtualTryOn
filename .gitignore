@@ -6,3 +6,5 @@ backend/uploads/*
 cp-vton-*/
 !.gitignore
 data/*
+backend/venv
+backend/__pycache__

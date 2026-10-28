@@ -1,1786 +1,334 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Virtual Try On</title>
+  <meta charset="UTF-8">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-:root{
-  --bg:#f4f1f7;
-  --bg-2:#e7e2ec;
-  --ink:#050505;
-  --muted:#3f3d41;
+  <title>Virtual Try On</title>
 
-  --glass:rgba(255,255,255,.50);
-  --glass-soft:rgba(255,255,255,.24);
-  --line:rgba(255,255,255,.74);
-  --chrome-line:rgba(172,172,176,.48);
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-  --silver-glow:rgba(255,255,255,.58);
-  --shadow:rgba(35,35,40,.12);
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&family=Cormorant+Garamond:wght@500;600&display=swap"
+    rel="stylesheet">
 
-  --sans:"Rajdhani","Inter",sans-serif;
-  --ui:"Inter",sans-serif;
-  --serif:"Cormorant Garamond",Georgia,serif;
-
-  --star:url("./assets/chrome/chrome-star.png");
-  --chrome:url("./assets/chrome/chrome-flow-3.png");
-  --cursor-img:url("./assets/chrome/chrome-pointer.png");
-}
-
-*{
-  box-sizing:border-box;
-}
-
-html{
-  scroll-behavior:smooth;
-}
-
-body{
-  margin:0;
-  min-height:100vh;
-  color:var(--ink);
-  font-family:var(--sans);
-  overflow-x:hidden;
-  background:
-    radial-gradient(circle at 12% 7%, rgba(255,255,255,.92) 0%, rgba(255,255,255,.36) 24%, transparent 48%),
-    radial-gradient(circle at 86% 14%, rgba(255,255,255,.76) 0%, rgba(255,255,255,.24) 21%, transparent 44%),
-    radial-gradient(circle at 22% 86%, rgba(247,244,250,.42) 0%, rgba(226,221,232,.22) 25%, transparent 48%),
-    radial-gradient(circle at 72% 72%, rgba(218,214,224,.16) 0%, transparent 36%),
-    radial-gradient(circle at 48% 48%, rgba(205,202,212,.14) 0%, transparent 52%),
-    linear-gradient(128deg, #fdfbff 0%, #f4f1f7 32%, #e7e3eb 62%, #fffefe 100%);
-  position:relative;
-}
-
-body::before{
-  content:"";
-  position:fixed;
-  inset:0;
-  z-index:0;
-  pointer-events:none;
-  background:
-    linear-gradient(110deg, transparent 0%, rgba(255,255,255,.34) 19%, transparent 32%, rgba(255,255,255,.16) 58%, transparent 78%),
-    repeating-linear-gradient(
-      135deg,
-      rgba(255,255,255,.16) 0px,
-      rgba(255,255,255,.16) 1px,
-      rgba(62,58,70,.028) 1px,
-      rgba(62,58,70,.028) 6px
-    );
-  opacity:.70;
-  mix-blend-mode:soft-light;
-}
-
-body::after{
-  content:"";
-  position:fixed;
-  inset:-10%;
-  z-index:1;
-  pointer-events:none;
-  background:
-    radial-gradient(ellipse at 70% 10%, rgba(255,255,255,.34), transparent 35%),
-    radial-gradient(ellipse at 20% 90%, rgba(214,210,222,.18), transparent 42%),
-    linear-gradient(118deg, transparent 9%, rgba(255,255,255,.17) 26%, transparent 39%, rgba(142,138,150,.10) 61%, transparent 78%);
-  opacity:.76;
-}
-
-button{
-  font:inherit;
-}
-
-img{
-  display:block;
-  max-width:100%;
-}
-
-/* SMALL CUSTOM CHROME CURSOR */
-@media (hover:hover) and (pointer:fine){
-  body,
-  button,
-  a,
-  input,
-  label,
-  .drop{
-    cursor:none !important;
-  }
-
-  .custom-cursor{
-    position:fixed;
-    left:0;
-    top:0;
-    width:22px;
-    height:22px;
-    z-index:999999;
-    pointer-events:none;
-    transform:translate3d(-999px,-999px,0);
-    background-image:var(--cursor-img);
-    background-size:contain;
-    background-position:center;
-    background-repeat:no-repeat;
-    filter:
-      drop-shadow(0 3px 4px rgba(10,16,30,.20))
-      drop-shadow(0 0 3px rgba(255,255,255,.55));
-    opacity:0;
-    will-change:transform;
-    transition:
-      opacity .12s ease,
-      width .10s ease,
-      height .10s ease,
-      filter .10s ease;
-  }
-
-  .custom-cursor.is-visible{
-    opacity:1;
-  }
-
-  .custom-cursor.is-hovering{
-    width:25px;
-    height:25px;
-    filter:
-      drop-shadow(0 4px 5px rgba(10,16,30,.22))
-      drop-shadow(0 0 4px rgba(255,255,255,.66));
-  }
-
-  .custom-cursor.is-clicking{
-    width:20px;
-    height:20px;
-  }
-}
-
-.topbar{
-  position:sticky;
-  top:0;
-  z-index:20;
-  overflow:hidden;
-  background:
-    linear-gradient(
-      115deg,
-      rgba(255,255,255,.96) 0%,
-      rgba(244,241,248,.94) 22%,
-      rgba(255,255,255,.98) 44%,
-      rgba(228,225,234,.90) 62%,
-      rgba(255,255,255,.96) 100%
-    );
-  border-bottom:1px solid rgba(174,166,182,.36);
-  backdrop-filter:blur(30px) saturate(1.08) contrast(1.03);
-  -webkit-backdrop-filter:blur(30px) saturate(1.08) contrast(1.03);
-  box-shadow:
-    0 22px 58px rgba(35,35,40,.08),
-    inset 0 1px 0 rgba(255,255,255,1),
-    inset 0 -1px 0 rgba(150,145,154,.18);
-}
-
-.topbar::before{
-  content:"";
-  position:absolute;
-  inset:-40%;
-  pointer-events:none;
-  background:
-    linear-gradient(
-      105deg,
-      transparent 0%,
-      transparent 20%,
-      rgba(255,255,255,.58) 28%,
-      rgba(205,202,212,.16) 34%,
-      transparent 44%,
-      transparent 58%,
-      rgba(255,255,255,.42) 66%,
-      rgba(196,192,204,.13) 72%,
-      transparent 82%
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255,255,255,.14) 0px,
-      rgba(255,255,255,.14) 1px,
-      rgba(55,50,64,.028) 1px,
-      rgba(55,50,64,.028) 5px
-    );
-  opacity:.62;
-  mix-blend-mode:soft-light;
-  transform:rotate(-2deg);
-}
-
-.topbar::after{
-  content:"";
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:0;
-  height:2px;
-  pointer-events:none;
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255,255,255,.88) 20%,
-      rgba(150,145,158,.32) 38%,
-      rgba(255,255,255,.88) 52%,
-      rgba(150,145,158,.26) 72%,
-      transparent 100%
-    );
-}
-
-.top-inner{
-  position:relative;
-  z-index:2;
-  width:min(1360px,calc(100% - 52px));
-  margin:0 auto;
-  padding:34px 0 30px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.brand{
-  position:relative;
-  text-align:center;
-}
-
-.brand h1{
-  margin:0;
-  font-family:var(--ui);
-  font-size:44px;
-  line-height:1;
-  font-weight:700;
-  letter-spacing:.60em;
-  text-transform:uppercase;
-  color:#050505;
-  background:none;
-  -webkit-text-fill-color:initial;
-  text-shadow:none;
-  filter:none;
-}
-
-.brand p{
-  margin:18px 0 0;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:.76em;
-  text-transform:uppercase;
-  color:#050505;
-  background:none;
-  -webkit-text-fill-color:initial;
-  text-shadow:none;
-  filter:none;
-}
-
-nav{
-  display:none;
-}
-
-.page{
-  position:relative;
-  z-index:5;
-  width:min(1360px,calc(100% - 52px));
-  margin:42px auto 24px;
-}
-
-.page::before{
-  content:"";
-  position:fixed;
-  inset:-20%;
-  z-index:-1;
-  pointer-events:none;
-  background:
-    linear-gradient(102deg, transparent 0 27%, rgba(255,255,255,.18) 36%, transparent 47% 100%),
-    linear-gradient(68deg, transparent 0 54%, rgba(214,210,224,.10) 61%, transparent 70% 100%);
-  opacity:.40;
-}
-
-.main-grid{
-  display:grid;
-  grid-template-columns:350px 1fr;
-  gap:24px;
-  align-items:stretch;
-}
-
-.card{
-  position:relative;
-  overflow:hidden;
-  padding:24px 28px 20px;
-  border-radius:32px;
-  border:1px solid rgba(255,255,255,.78);
-  background:
-    linear-gradient(142deg, rgba(255,255,255,.66), rgba(246,243,249,.34)),
-    radial-gradient(circle at 14% 0%, rgba(255,255,255,.74), transparent 34%),
-    radial-gradient(circle at 92% 100%, rgba(214,210,222,.14), transparent 42%);
-  box-shadow:
-    0 32px 78px rgba(35,35,40,.11),
-    0 0 0 1px rgba(174,164,184,.20),
-    inset 0 1px 0 rgba(255,255,255,.92),
-    inset 0 -1px 0 rgba(160,156,164,.18);
-  backdrop-filter:blur(28px) saturate(1.08) contrast(1.02);
-  -webkit-backdrop-filter:blur(28px) saturate(1.08) contrast(1.02);
-  transition:transform .28s ease, box-shadow .28s ease, border-color .28s ease;
-  isolation:isolate;
-}
-
-.card::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  border-radius:inherit;
-  background:
-    linear-gradient(117deg, rgba(255,255,255,.50) 0%, transparent 24%, rgba(142,138,150,.10) 42%, rgba(255,255,255,.22) 58%, transparent 78%),
-    repeating-linear-gradient(
-      135deg,
-      rgba(255,255,255,.12) 0 1px,
-      rgba(70,64,82,.023) 1px 8px
-    );
-  opacity:.68;
-  mix-blend-mode:soft-light;
-}
-
-.card::after{
-  content:"";
-  position:absolute;
-  inset:1px;
-  pointer-events:none;
-  border-radius:31px;
-  border:1px solid rgba(255,255,255,.38);
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255,255,255,.28), transparent 31%),
-    linear-gradient(104deg, transparent 0%, rgba(255,255,255,.14) 46%, transparent 62%);
-  opacity:.62;
-}
-
-.card:hover{
-  transform:translateY(-1px);
-  box-shadow:
-    0 38px 86px rgba(35,35,40,.13),
-    0 0 0 1px rgba(174,164,184,.23),
-    inset 0 1px 0 rgba(255,255,255,1),
-    inset 0 -1px 0 rgba(160,156,164,.18);
-}
-
-.card > *{
-  position:relative;
-  z-index:2;
-}
-
-.card h3,
-.section-title{
-  margin:0 0 18px;
-  font-family:var(--serif);
-  font-size:25px;
-  line-height:1;
-  font-weight:600;
-  letter-spacing:.20em;
-  text-transform:uppercase;
-  white-space:nowrap;
-  color:#050505;
-  background:none;
-  -webkit-text-fill-color:initial;
-  text-shadow:none;
-  filter:none;
-}
-
-.section-title{
-  margin:0;
-}
-
-.card h3::before,
-.section-title::before{
-  content:"";
-  display:inline-block;
-  width:26px;
-  height:26px;
-  margin-right:10px;
-  vertical-align:-7px;
-  background-image:var(--star);
-  background-size:contain;
-  background-repeat:no-repeat;
-  background-position:center;
-  opacity:.72;
-  filter:
-    grayscale(.35)
-    saturate(.55)
-    brightness(1.12)
-    contrast(1.04);
-}
-
-.lead{
-  display:none;
-  margin:0;
-}
-
-.field{
-  margin-bottom:10px;
-}
-
-label{
-  display:block;
-  margin-bottom:7px;
-  font-size:17px;
-  line-height:1;
-  font-weight:700;
-  letter-spacing:.16em;
-  text-transform:uppercase;
-  white-space:nowrap;
-  color:#050505;
-  background:none;
-  -webkit-text-fill-color:initial;
-  text-shadow:none;
-  filter:none;
-}
-
-.label-optional{
-  font-size:.62em;
-  letter-spacing:.10em;
-  font-weight:700;
-  opacity:.62;
-  vertical-align:baseline;
-}
-
-.preview-stack label{
-  font-size:16px;
-  letter-spacing:.12em;
-}
-
-label::before{
-  content:"";
-  display:inline-block;
-  width:21px;
-  height:21px;
-  margin-right:8px;
-  vertical-align:-5px;
-  background-image:var(--star);
-  background-size:contain;
-  background-repeat:no-repeat;
-  background-position:center;
-  opacity:.72;
-  filter:
-    grayscale(.35)
-    saturate(.55)
-    brightness(1.12)
-    contrast(1.04);
-}
-
-label::after{
-  display:none;
-  content:none;
-}
-
-input[type=file]{
-  display:none;
-}
-
-.input{
-  width:100%;
-  padding:10px 16px;
-  color:#050505;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.60), rgba(238,235,242,.30)),
-    radial-gradient(circle at 80% 10%, rgba(255,255,255,.50), transparent 38%);
-  border:1px solid rgba(255,255,255,.82);
-  border-radius:16px;
-  outline:none;
-  font-family:var(--sans);
-  font-weight:700;
-  letter-spacing:.04em;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.86),
-    inset 0 -1px 0 rgba(160,156,164,.14),
-    0 14px 30px rgba(35,35,40,.06);
-}
-
-.input:focus{
-  border-color:rgba(80,80,86,.34);
-  box-shadow:
-    0 0 0 1px rgba(90,90,96,.18),
-    inset 0 1px 0 rgba(255,255,255,.96),
-    0 16px 34px rgba(35,35,40,.08);
-}
-
-.input::placeholder{
-  color:rgba(0,0,0,.34);
-}
-
-.drop{
-  min-height:112px;
-  display:grid;
-  grid-template-columns:88px 1fr;
-  gap:20px;
-  align-items:center;
-  padding:11px 15px;
-  border:1px solid rgba(255,255,255,.82);
-  border-radius:25px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.58), rgba(238,235,242,.28)),
-    radial-gradient(circle at 80% 10%, rgba(255,255,255,.48), transparent 38%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.86),
-    inset 0 -1px 0 rgba(160,156,164,.14),
-    0 14px 30px rgba(35,35,40,.06);
-  transition:.22s ease;
-  isolation:isolate;
-}
-
-.drop:hover,
-.drop.dragover{
-  transform:translateY(-1px);
-  border-color:rgba(80,80,86,.30);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.96),
-    inset 0 -1px 0 rgba(160,156,164,.16),
-    0 18px 38px rgba(35,35,40,.09);
-}
-
-.thumb{
-  width:88px;
-  height:82px;
-  border-radius:19px;
-  border:1px solid rgba(255,255,255,.84);
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.58), rgba(238,235,242,.28)),
-    radial-gradient(circle at 80% 10%, rgba(255,255,255,.48), transparent 38%);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.86),
-    inset 0 -1px 0 rgba(160,156,164,.14),
-    0 14px 30px rgba(35,35,40,.06);
-}
-
-.thumb svg{
-  width:44px;
-  height:44px;
-  stroke:rgba(0,0,0,.30);
-  stroke-width:1.35;
-  fill:none;
-  filter:none;
-}
-
-.thumb img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-
-.drop-title{
-  font-size:13px;
-  font-weight:800;
-  text-transform:uppercase;
-  margin-bottom:5px;
-  letter-spacing:.10em;
-  color:#050505;
-  text-shadow:none;
-  filter:none;
-}
-
-.drop-subtitle{
-  color:#050505;
-  font-size:12px;
-  font-weight:700;
-  margin-bottom:9px;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  text-shadow:none;
-  filter:none;
-}
-
-.row{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.primary,
-.ghost{
-  position:relative;
-  overflow:hidden;
-  transition:.22s ease;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.20em;
-  text-transform:uppercase;
-  text-shadow:none;
-  isolation:isolate;
-}
-
-.primary::before,
-.ghost::before,
-.brand-preview::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background:
-    linear-gradient(
-      105deg,
-      transparent 0 16%,
-      rgba(255,255,255,.68) 31%,
-      rgba(255,255,255,.34) 42%,
-      transparent 58% 100%
-    );
-  transform:translateX(-130%);
-  transition:.6s;
-}
-
-.primary:hover::before,
-.ghost:hover::before,
-.brand-card:hover .brand-preview::before{
-  transform:translateX(130%);
-}
-
-.primary{
-  width:100%;
-  border-radius:17px;
-  border:1px solid rgba(120,116,124,.34);
-  color:#080808;
-  padding:13px 20px;
-  background:
-    linear-gradient(
-      120deg,
-      #bbb9c0 0%,
-      #ffffff 18%,
-      #dedce3 38%,
-      #ffffff 54%,
-      #cbc8d0 76%,
-      #f7f5fa 100%
-    );
-  box-shadow:
-    0 16px 34px rgba(35,35,40,.13),
-    inset 0 1px 0 rgba(255,255,255,.92),
-    inset 0 -1px 0 rgba(70,70,76,.18);
-  background-size:220% 220%;
-  animation:metalSurface 9s ease-in-out infinite alternate;
-}
-
-.primary:hover{
-  transform:translateY(-1.5px);
-  box-shadow:
-    0 20px 42px rgba(35,35,40,.16),
-    inset 0 1px 0 rgba(255,255,255,1),
-    inset 0 -1px 0 rgba(70,70,76,.16);
-}
-
-.ghost{
-  border-radius:15px;
-  border:1px solid rgba(120,116,124,.26);
-  color:#080808;
-  padding:9px 18px;
-  background:
-    linear-gradient(
-      120deg,
-      rgba(234,232,238,.92) 0%,
-      rgba(255,255,255,.96) 36%,
-      rgba(222,219,228,.84) 72%,
-      rgba(250,248,252,.94) 100%
-    );
-  box-shadow:
-    0 12px 24px rgba(35,35,40,.08),
-    inset 0 1px 0 rgba(255,255,255,.90),
-    inset 0 -1px 0 rgba(120,116,124,.14);
-  background-size:220% 220%;
-  animation:metalSurface 9s ease-in-out infinite alternate;
-}
-
-.ghost:hover{
-  transform:translateY(-1.5px);
-  border-color:rgba(80,78,84,.36);
-  box-shadow:
-    0 16px 30px rgba(35,35,40,.11),
-    inset 0 1px 0 rgba(255,255,255,1);
-}
-
-.primary:disabled,
-.ghost:disabled{
-  opacity:.54;
-  cursor:not-allowed;
-  transform:none;
-}
-
-.status{
-  display:none;
-}
-
-.result-card{
-  padding:24px 28px 20px;
-  display:flex;
-  flex-direction:column;
-}
-
-.result-card .lead{
-  display:none;
-}
-
-.result-layout{
-  display:grid;
-  grid-template-columns:1fr 190px;
-  gap:26px;
-  align-items:start;
-  flex:1;
-}
-
-/* STATIC TRANSPARENT METALLIC RESULT BOX */
-.result-box{
-  height:405px;
-  position:relative;
-  border-radius:28px;
-  border:1px solid rgba(255,255,255,.88);
-  overflow:hidden;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255,255,255,.62) 0%,
-      rgba(226,225,230,.38) 21%,
-      rgba(255,255,255,.56) 39%,
-      rgba(190,190,198,.24) 58%,
-      rgba(255,255,255,.52) 75%,
-      rgba(216,214,222,.34) 100%
-    );
-  box-shadow:
-    0 0 0 1px rgba(126,126,136,.20),
-    inset 0 1px 0 rgba(255,255,255,.94),
-    inset 0 -1px 0 rgba(80,82,90,.18),
-    inset 22px 22px 64px rgba(255,255,255,.34),
-    inset -28px -30px 70px rgba(20,22,28,.10),
-    0 24px 56px rgba(35,35,40,.12);
-  backdrop-filter:blur(22px) saturate(1.04) contrast(1.04);
-  -webkit-backdrop-filter:blur(22px) saturate(1.04) contrast(1.04);
-  transition:transform .28s ease, box-shadow .28s ease, border-color .28s ease;
-  isolation:isolate;
-}
-
-.result-box::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:2;
-  pointer-events:none;
-  background:
-    linear-gradient(
-      118deg,
-      rgba(255,255,255,.54) 0%,
-      transparent 22%,
-      rgba(68,70,78,.055) 40%,
-      rgba(255,255,255,.38) 56%,
-      rgba(88,88,96,.045) 72%,
-      rgba(255,255,255,.46) 100%
-    ),
-    repeating-linear-gradient(
-      135deg,
-      rgba(255,255,255,.16) 0px,
-      rgba(255,255,255,.16) 1px,
-      rgba(40,42,48,.026) 1px,
-      rgba(40,42,48,.026) 5px
-    );
-  opacity:.82;
-  mix-blend-mode:soft-light;
-}
-
-.result-box::after{
-  content:"";
-  position:absolute;
-  inset:1px;
-  z-index:3;
-  pointer-events:none;
-  border-radius:27px;
-  border:1px solid rgba(255,255,255,.72);
-  box-shadow:
-    inset 0 0 30px rgba(255,255,255,.34),
-    inset 0 0 32px rgba(25,27,34,.08),
-    inset 0 0 0 1px rgba(112,114,122,.08);
-}
-
-.result-liquid-map{
-  position:absolute;
-  inset:-8% -8%;
-  width:116%;
-  height:116%;
-  z-index:1;
-  object-fit:cover;
-  object-position:center;
-  pointer-events:none;
-  opacity:.28;
-  filter:
-    grayscale(.88)
-    saturate(.20)
-    brightness(1.30)
-    contrast(1.08);
-  -webkit-mask-image:
-    radial-gradient(ellipse at 79% 12%, #000 0%, #000 16%, rgba(0,0,0,.72) 25%, rgba(0,0,0,.30) 36%, transparent 50%),
-    radial-gradient(ellipse at 13% 88%, #000 0%, #000 17%, rgba(0,0,0,.72) 27%, rgba(0,0,0,.30) 38%, transparent 52%);
-  mask-image:
-    radial-gradient(ellipse at 79% 12%, #000 0%, #000 16%, rgba(0,0,0,.72) 25%, rgba(0,0,0,.30) 36%, transparent 50%),
-    radial-gradient(ellipse at 13% 88%, #000 0%, #000 17%, rgba(0,0,0,.72) 27%, rgba(0,0,0,.30) 38%, transparent 52%);
-}
-
-.result-shine{
-  position:absolute;
-  inset:-12% -22%;
-  z-index:4;
-  pointer-events:none;
-  background:
-    linear-gradient(
-      112deg,
-      transparent 0%,
-      transparent 18%,
-      rgba(255,255,255,.20) 31%,
-      rgba(255,255,255,.46) 40%,
-      rgba(255,255,255,.18) 50%,
-      rgba(48,50,58,.035) 65%,
-      transparent 82%
-    ),
-    radial-gradient(circle at 72% 8%, rgba(255,255,255,.34), transparent 28%);
-  opacity:.62;
-  mix-blend-mode:soft-light;
-}
-
-.result-display{
-  position:relative;
-  z-index:5;
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:rgba(0,0,0,.42);
-  font-size:14px;
-  font-weight:800;
-  letter-spacing:.22em;
-  text-align:center;
-  text-transform:uppercase;
-  padding:40px 28px 28px;
-  text-shadow:none;
-  filter:none;
-}
-
-.result-display img.result-image{
-  max-width:100%;
-  max-height:100%;
-  object-fit:contain;
-  border-radius:21px;
-  position:relative;
-  z-index:5;
-  box-shadow:0 18px 38px rgba(35,35,40,.14);
-}
-
-.preview-stack{
-  display:flex;
-  flex-direction:column;
-  gap:20px;
-}
-
-/* STATIC TRANSPARENT METALLIC PREVIEW BOXES */
-.preview-box{
-  height:150px;
-  border:1px solid rgba(255,255,255,.86);
-  border-radius:21px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255,255,255,.58) 0%,
-      rgba(226,225,230,.36) 24%,
-      rgba(255,255,255,.54) 46%,
-      rgba(188,188,196,.22) 64%,
-      rgba(255,255,255,.50) 100%
-    );
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
-  color:transparent;
-  text-align:center;
-  padding:8px;
-  box-shadow:
-    0 0 0 1px rgba(116,118,126,.16),
-    inset 0 1px 0 rgba(255,255,255,.92),
-    inset 0 -1px 0 rgba(74,76,84,.14),
-    inset 16px 16px 36px rgba(255,255,255,.30),
-    inset -18px -20px 40px rgba(30,32,38,.08),
-    0 14px 30px rgba(35,35,40,.07);
-  backdrop-filter:blur(18px) saturate(1.04) contrast(1.04);
-  -webkit-backdrop-filter:blur(18px) saturate(1.04) contrast(1.04);
-  position:relative;
-  transition:transform .28s ease, box-shadow .28s ease, border-color .28s ease;
-  isolation:isolate;
-}
-
-.preview-box::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background:
-    linear-gradient(
-      115deg,
-      transparent 0%,
-      rgba(255,255,255,.38) 28%,
-      transparent 48%,
-      rgba(72,74,82,.055) 64%,
-      rgba(255,255,255,.26) 80%,
-      transparent 100%
-    ),
-    repeating-linear-gradient(
-      135deg,
-      rgba(255,255,255,.13) 0 1px,
-      rgba(48,50,58,.024) 1px 5px
-    );
-  opacity:.76;
-  mix-blend-mode:soft-light;
-}
-
-.preview-box::after{
-  content:"";
-  position:absolute;
-  inset:1px;
-  pointer-events:none;
-  border-radius:20px;
-  border:1px solid rgba(255,255,255,.62);
-  box-shadow:
-    inset 0 0 20px rgba(255,255,255,.26),
-    inset 0 0 22px rgba(35,37,44,.07);
-}
-
-.preview-box img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  position:relative;
-  z-index:2;
-}
-
-.actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:26px;
-  margin-top:18px;
-}
-
-.archive{
-  margin-top:24px;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:24px;
-}
-
-.section-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:start;
-  gap:14px;
-  margin-bottom:24px;
-}
-
-.section-note{
-  font-size:15px;
-  font-weight:800;
-  letter-spacing:.18em;
-  text-transform:uppercase;
-  color:#050505;
-  white-space:nowrap;
-  text-shadow:none;
-  filter:none;
-}
-
-.wardrobe-grid,
-.brands-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:14px;
-}
-
-.wardrobe-card,
-.brand-card{
-  min-height:220px;
-  border:1px solid rgba(255,255,255,.80);
-  border-radius:21px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.58), rgba(238,235,242,.28)),
-    radial-gradient(circle at 80% 10%, rgba(255,255,255,.48), transparent 38%);
-  overflow:hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.86),
-    inset 0 -1px 0 rgba(160,156,164,.14),
-    0 14px 30px rgba(35,35,40,.06);
-  transition:transform .28s ease, box-shadow .28s ease, border-color .28s ease;
-  isolation:isolate;
-}
-
-.wardrobe-card:hover,
-.brand-card:hover{
-  transform:translateY(-1px);
-  box-shadow:
-    0 26px 52px rgba(35,35,40,.11),
-    inset 0 1px 0 rgba(255,255,255,.96),
-    inset 0 -1px 0 rgba(160,156,164,.16);
-}
-
-.wardrobe-card img{
-  width:100%;
-  height:128px;
-  object-fit:cover;
-  background:linear-gradient(135deg,rgba(255,255,255,.24),rgba(230,228,232,.18));
-}
-
-.wardrobe-info,
-.brand-info{
-  padding:13px;
-  text-align:center;
-}
-
-.wardrobe-info strong,
-.brand-info strong{
-  display:block;
-  margin-bottom:9px;
-  font-size:17px;
-  font-weight:800;
-  letter-spacing:.13em;
-  text-transform:uppercase;
-  color:#050505;
-  text-shadow:none;
-  filter:none;
-}
-
-.wardrobe-info a,
-.brand-info a{
-  color:#1b1b1d;
-  text-decoration:none;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-}
-
-.wardrobe-info .ghost{
-  width:100%;
-  margin-top:12px;
-  padding:8px;
-}
-
-.brand-preview{
-  position:relative;
-  overflow:hidden;
-  height:118px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:
-    linear-gradient(
-      120deg,
-      rgba(204,200,210,.30) 0%,
-      rgba(255,255,255,.92) 22%,
-      rgba(226,222,232,.76) 44%,
-      rgba(255,255,255,.98) 58%,
-      rgba(208,204,216,.58) 78%,
-      rgba(248,246,251,.88) 100%
-    );
-  background-size:220% 220%;
-  border-bottom:1px solid rgba(255,255,255,.76);
-  font-size:22px;
-  font-weight:800;
-  letter-spacing:.10em;
-  text-transform:uppercase;
-  color:#050505;
-  text-shadow:none;
-  animation:metalSurface 9s ease-in-out infinite alternate;
-}
-
-.brand-preview.small-logo{
-  font-size:16px;
-  letter-spacing:.10em;
-}
-
-.empty{
-  grid-column:1/-1;
-  border:1px solid rgba(255,255,255,.82);
-  border-radius:15px;
-  padding:18px;
-  text-align:center;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-  color:#050505;
-  background:rgba(255,255,255,.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.82);
-  text-shadow:none;
-  filter:none;
-}
-
-.footer{
-  position:relative;
-  z-index:5;
-  padding:8px 0 24px;
-  color:rgba(0,0,0,.46);
-  text-align:center;
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:.24em;
-  text-transform:uppercase;
-  text-shadow:none;
-  filter:none;
-}
-
-@keyframes metalSurface{
-  from{ background-position:0% 50%; }
-  to{ background-position:100% 50%; }
-}
-
-@media(max-height:850px) and (min-width:1101px){
-  .top-inner{
-    padding:24px 0 20px;
-  }
-
-  .brand h1{
-    font-size:40px;
-  }
-
-  .brand p{
-    margin-top:14px;
-  }
-
-  .page{
-    margin-top:36px;
-  }
-
-  .result-box{
-    height:380px;
-  }
-
-  .preview-box{
-    height:140px;
-  }
-
-  .drop{
-    min-height:108px;
-    padding-top:10px;
-    padding-bottom:10px;
-  }
-
-  .thumb{
-    height:80px;
-  }
-
-  .card{
-    padding-top:22px;
-    padding-bottom:18px;
-  }
-
-  .card h3{
-    margin-bottom:16px;
-  }
-
-  .field{
-    margin-bottom:9px;
-  }
-
-  .input{
-    padding-top:9px;
-    padding-bottom:9px;
-  }
-
-  .primary{
-    padding-top:12px;
-    padding-bottom:12px;
-  }
-}
-
-@media(max-width:1100px){
-  .top-inner{
-    text-align:center;
-  }
-
-  .main-grid,
-  .archive{
-    grid-template-columns:1fr;
-  }
-
-  .result-layout{
-    grid-template-columns:1fr;
-  }
-
-  .preview-stack{
-    flex-direction:row;
-  }
-
-  .preview-stack > div{
-    flex:1;
-  }
-}
-
-@media(max-width:680px){
-  .top-inner,
-  .page{
-    width:calc(100% - 24px);
-  }
-
-  .brand h1{
-    font-size:24px;
-    letter-spacing:.25em;
-  }
-
-  .brand p{
-    letter-spacing:.34em;
-  }
-
-  .card{
-    padding:20px;
-  }
-
-  .card h3,
-  .section-title{
-    font-size:23px;
-    letter-spacing:.16em;
-  }
-
-  .card h3::before,
-  .section-title::before{
-    width:23px;
-    height:23px;
-    vertical-align:-6px;
-  }
-
-  label{
-    font-size:15px;
-    letter-spacing:.10em;
-  }
-
-  .label-optional{
-    font-size:.60em;
-    letter-spacing:.08em;
-  }
-
-  label::before{
-    width:18px;
-    height:18px;
-    vertical-align:-4px;
-  }
-
-  .preview-stack label{
-    font-size:14px;
-    letter-spacing:.08em;
-  }
-
-  .drop{
-    grid-template-columns:1fr;
-  }
-
-  .result-box{
-    height:380px;
-  }
-
-  .preview-stack{
-    flex-direction:column;
-  }
-
-  .actions{
-    grid-template-columns:1fr;
-    gap:12px;
-  }
-
-  .wardrobe-grid,
-  .brands-grid{
-    grid-template-columns:repeat(2,1fr);
-  }
-
-  .result-liquid-map{
-    inset:-10% -12%;
-    width:124%;
-    height:124%;
-  }
-
-  .custom-cursor{
-    display:none;
-  }
-}
-</style>
+  <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
 
-<div class="custom-cursor" id="custom-cursor" aria-hidden="true"></div>
+  <!-- Page header and authentication buttons -->
+  <header class="topbar">
+    <div class="top-inner">
 
-<header class="topbar">
-  <div class="top-inner">
-    <div class="brand">
-      <h1>Virtual Try On</h1>
-      <p>AI Clothing Visualization</p>
+      <div class="brand">
+        <h1>Virtual Try On</h1>
+        <p>AI Clothing Visualization</p>
+      </div>
+
+      <div class="auth-area">
+
+        <div id="guest-auth">
+          <button class="ghost auth-button" id="open-login-btn" type="button">
+            Log in
+          </button>
+
+          <button class="primary auth-button" id="open-register-btn" type="button">
+            Register
+          </button>
+        </div>
+
+        <div id="user-auth" hidden>
+          <span id="current-user-email"></span>
+
+          <button class="ghost auth-button" id="logout-btn" type="button">
+            Log out
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Login and registration window -->
+  <div class="auth-modal" id="auth-modal" hidden>
+    <div class="auth-modal-backdrop" id="auth-modal-backdrop"></div>
+
+    <div class="auth-dialog">
+
+      <button class="auth-close" id="auth-close-btn" type="button" aria-label="Close">
+        ×
+      </button>
+
+      <h2 id="auth-title">Log in</h2>
+
+      <form id="auth-form">
+
+        <div class="field">
+          <label for="auth-email">
+            Email
+          </label>
+
+          <input class="input" id="auth-email" type="email" autocomplete="email" required>
+        </div>
+
+        <div class="field">
+          <label for="auth-password">
+            Password
+          </label>
+
+          <input class="input" id="auth-password" type="password" minlength="6" autocomplete="current-password"
+            required>
+        </div>
+
+        <div class="auth-error" id="auth-error"></div>
+
+        <button class="primary" id="auth-submit-btn" type="submit">
+          Log in
+        </button>
+      </form>
+
+      <button class="auth-switch" id="auth-switch-btn" type="button">
+        Create an account
+      </button>
+
     </div>
   </div>
-</header>
 
-<main class="page">
+  <!-- Main application content -->
+  <main class="page">
 
-  <section class="main-grid" id="tryon">
+    <!-- Upload and generated result section -->
+    <section class="main-grid" id="tryon">
 
-    <div class="card">
-      <h3>Inputs</h3>
+      <div class="card">
 
-      <div class="field">
-        <label>Person image</label>
-        <div class="drop" id="drop-person">
-          <div class="thumb" id="thumb-person">
-            <svg viewBox="0 0 24 24">
-              <path d="M20 21a8 8 0 0 0-16 0"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </div>
+        <h3>Inputs</h3>
 
-          <div>
-            <div class="drop-title">Upload person</div>
-            <div class="drop-subtitle">JPG / PNG</div>
+        <div class="field">
 
-            <div class="row">
-              <input id="person-input" type="file" accept="image/*">
-              <button class="ghost" type="button" onclick="document.getElementById('person-input').click()">Upload</button>
-              <button class="ghost" type="button" onclick="clearPerson()">Clear</button>
+          <label>
+            Person image
+          </label>
+
+          <div class="drop" id="drop-person">
+
+            <div class="thumb" id="thumb-person">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 21a8 8 0 0 0-16 0"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+
+            <div>
+
+              <div class="drop-title">
+                Upload person
+              </div>
+
+              <div class="drop-subtitle">
+                JPG / PNG
+              </div>
+
+              <div class="row">
+
+                <input id="person-input" type="file" accept="image/*">
+
+                <button class="ghost" id="upload-person-btn" type="button">
+                  Upload
+                </button>
+
+                <button class="ghost" id="clear-person-btn" type="button">
+                  Clear
+                </button>
+
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="field">
-        <label>Garment image</label>
-        <div class="drop" id="drop-cloth">
-          <div class="thumb" id="thumb-cloth">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 7a2 2 0 1 0-2-2"/>
-              <path d="M12 7v3"/>
-              <path d="M5 20h14l-7-8z"/>
-            </svg>
-          </div>
+        <div class="field">
 
-          <div>
-            <div class="drop-title">Upload garment</div>
-            <div class="drop-subtitle">JPG / PNG</div>
+          <label>
+            Garment image
+          </label>
 
-            <div class="row">
-              <input id="cloth-input" type="file" accept="image/*">
-              <button class="ghost" type="button" onclick="document.getElementById('cloth-input').click()">Upload</button>
-              <button class="ghost" type="button" onclick="clearCloth()">Clear</button>
+          <div class="drop" id="drop-cloth">
+
+            <div class="thumb" id="thumb-cloth">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 7a2 2 0 1 0-2-2"></path>
+                <path d="M12 7v3"></path>
+                <path d="M5 20h14l-7-8z"></path>
+              </svg>
+            </div>
+
+            <div>
+
+              <div class="drop-title">
+                Upload garment
+              </div>
+
+              <div class="drop-subtitle">
+                JPG / PNG
+              </div>
+
+              <div class="row">
+
+                <input id="cloth-input" type="file" accept="image/*">
+
+                <button class="ghost" id="upload-cloth-btn" type="button">
+                  Upload
+                </button>
+
+                <button class="ghost" id="clear-cloth-btn" type="button">
+                  Clear
+                </button>
+
+              </div>
             </div>
           </div>
         </div>
+
+        <div class="field">
+
+          <label for="store-link">
+            Store link
+            <span class="label-optional">
+              (optional)
+            </span>
+          </label>
+
+          <input id="store-link" class="input" type="url" placeholder="https://example.com/item">
+
+        </div>
+
+        <button class="primary" id="try-btn" type="button">
+          Generate
+        </button>
+
+        <div class="status" id="status">
+          Ready
+        </div>
+
       </div>
 
-      <div class="field">
-        <label>Store link <span class="label-optional">(optional)</span></label>
-        <input id="store-link" class="input" type="url" placeholder="https://example.com/item">
-      </div>
+      <div class="card result-card" id="result">
 
-      <button class="primary" id="try-btn" type="button">Generate</button>
+        <h3>Result</h3>
 
-      <div class="status" id="status">Ready</div>
-    </div>
+        <div class="result-layout">
 
-    <div class="card result-card" id="result">
-      <h3>Result</h3>
+          <div>
 
-      <div class="result-layout">
-        <div>
-          <div class="result-box">
-            <img src="./assets/chrome/chrome-flow-3.png" class="result-liquid-map" alt="" aria-hidden="true" onerror="this.style.display='none'">
-            <div class="result-shine"></div>
+            <div class="result-box">
 
-            <div class="result-display" id="result-display">
-              <span>Result will appear here</span>
+              <div class="result-shine"></div>
+
+              <div class="result-display" id="result-display">
+                <span>
+                  Result will appear here
+                </span>
+              </div>
+
+            </div>
+
+            <div class="actions">
+
+              <button class="ghost" id="download-btn" type="button" disabled>
+                Download
+              </button>
+
+              <button class="primary" id="save-btn" type="button" disabled>
+                Save Result
+              </button>
+
             </div>
           </div>
 
-          <div class="actions">
-            <button class="ghost" id="download-btn" type="button" disabled>Download</button>
-            <button class="primary" id="save-btn" type="button" disabled>Save Result</button>
+          <div class="preview-stack">
+
+            <div>
+
+              <label>
+                Person preview
+              </label>
+
+              <div class="preview-box" id="preview-person-box"></div>
+
+            </div>
+
+            <div>
+
+              <label>
+                Garment preview
+              </label>
+
+              <div class="preview-box" id="preview-cloth-box"></div>
+
+            </div>
+
           </div>
         </div>
+      </div>
 
-        <div class="preview-stack">
+    </section>
+
+    <!-- Saved wardrobe and recommended brands -->
+    <section class="archive">
+
+      <div class="card" id="wardrobe">
+
+        <div class="section-head">
+
           <div>
-            <label>Person preview</label>
-            <div class="preview-box" id="preview-person-box"></div>
+            <div class="section-title">
+              Wardrobe
+            </div>
           </div>
+
+          <div class="section-note">
+            View all
+          </div>
+
+        </div>
+
+        <div class="wardrobe-grid" id="wardrobe-grid"></div>
+
+      </div>
+
+      <div class="card" id="brands">
+
+        <div class="section-head">
 
           <div>
-            <label>Garment preview</label>
-            <div class="preview-box" id="preview-cloth-box"></div>
+            <div class="section-title">
+              Brands
+            </div>
           </div>
+
+          <div class="section-note">
+            View all
+          </div>
+
         </div>
-      </div>
-    </div>
 
-  </section>
+        <div class="brands-grid" id="brands-grid"></div>
 
-  <section class="archive">
-
-    <div class="card" id="wardrobe">
-      <div class="section-head">
-        <div>
-          <div class="section-title">Wardrobe</div>
-          <p class="lead">Saved results</p>
-        </div>
-        <div class="section-note">View all</div>
       </div>
 
-      <div class="wardrobe-grid" id="wardrobe-grid"></div>
-    </div>
-
-    <div class="card" id="brands">
-      <div class="section-head">
-        <div>
-          <div class="section-title">Brands</div>
-          <p class="lead">Shop the look</p>
-        </div>
-        <div class="section-note">View all</div>
-      </div>
-
-      <div class="brands-grid" id="brands-grid"></div>
-    </div>
-
-  </section>
-
-</main>
-
-<div class="footer">© 2026 Virtual Try On</div>
-
-<script>
-const API_ENDPOINT = 'http://127.0.0.1:5051/api/tryon';
-
-const personIcon = `
-  <svg viewBox="0 0 24 24">
-    <path d="M20 21a8 8 0 0 0-16 0"/>
-    <circle cx="12" cy="7" r="4"/>
-  </svg>
-`;
-
-const hangerIcon = `
-  <svg viewBox="0 0 24 24">
-    <path d="M12 7a2 2 0 1 0-2-2"/>
-    <path d="M12 7v3"/>
-    <path d="M5 20h14l-7-8z"/>
-  </svg>
-`;
-
-const resultPlaceholder = `
-  <span>Result will appear here</span>
-`;
-
-const recommendedBrands = [
-  {
-    name: 'FENGSYSTEM',
-    display: 'Fengsystem',
-    url: 'https://fengsystem.com'
-  },
-  {
-    name: 'JADEDLONDON',
-    display: 'Jaded',
-    url: 'https://jadedldn.com'
-  },
-  {
-    name: 'MISBHV',
-    display: 'misbhv',
-    url: 'https://misbhv.com'
-  },
-  {
-    name: 'SCULPTOR',
-    display: 'SCULPTOR.',
-    url: 'https://sculptor-worldwide.com'
-  }
-];
-
-const personInput = document.getElementById('person-input');
-const clothInput = document.getElementById('cloth-input');
-
-const thumbPerson = document.getElementById('thumb-person');
-const thumbCloth = document.getElementById('thumb-cloth');
-
-const previewPersonBox = document.getElementById('preview-person-box');
-const previewClothBox = document.getElementById('preview-cloth-box');
-const resultDisplay = document.getElementById('result-display');
-
-const tryBtn = document.getElementById('try-btn');
-const saveBtn = document.getElementById('save-btn');
-const downloadBtn = document.getElementById('download-btn');
-
-const status = document.getElementById('status');
-const storeLinkInput = document.getElementById('store-link');
-const wardrobeGrid = document.getElementById('wardrobe-grid');
-const brandsGrid = document.getElementById('brands-grid');
-
-let personFile = null;
-let clothFile = null;
-let resultImageUrl = null;
-
-function resetResultPlaceholder(){
-  resultDisplay.innerHTML = resultPlaceholder;
-}
-
-function clearPerson(){
-  personFile = null;
-  personInput.value = '';
-  thumbPerson.innerHTML = personIcon;
-  previewPersonBox.innerHTML = '';
-}
-
-function clearCloth(){
-  clothFile = null;
-  clothInput.value = '';
-  thumbCloth.innerHTML = hangerIcon;
-  previewClothBox.innerHTML = '';
-}
-
-function fileToDataURL(file){
-  return new Promise((resolve,reject)=>{
-    const reader = new FileReader();
-    reader.onload = ()=>resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-personInput.addEventListener('change', async(event)=>{
-  const file = event.target.files[0];
-  if(!file) return;
-
-  personFile = file;
-  const url = await fileToDataURL(file);
-
-  thumbPerson.innerHTML = `<img src="${url}" alt="Person">`;
-  previewPersonBox.innerHTML = `<img src="${url}" alt="Person preview">`;
-});
-
-clothInput.addEventListener('change', async(event)=>{
-  const file = event.target.files[0];
-  if(!file) return;
-
-  clothFile = file;
-  const url = await fileToDataURL(file);
-
-  thumbCloth.innerHTML = `<img src="${url}" alt="Garment">`;
-  previewClothBox.innerHTML = `<img src="${url}" alt="Garment preview">`;
-});
-
-function makeDrop(drop,input){
-  drop.addEventListener('dragover',(event)=>{
-    event.preventDefault();
-    drop.classList.add('dragover');
-  });
-
-  drop.addEventListener('dragleave',()=>{
-    drop.classList.remove('dragover');
-  });
-
-  drop.addEventListener('drop',(event)=>{
-    event.preventDefault();
-    drop.classList.remove('dragover');
-
-    const file = event.dataTransfer.files[0];
-
-    if(file){
-      input.files = event.dataTransfer.files;
-      input.dispatchEvent(new Event('change'));
-    }
-  });
-
-  drop.addEventListener('click',(event)=>{
-    if(event.target.closest('button')) return;
-    input.click();
-  });
-}
-
-makeDrop(document.getElementById('drop-person'), personInput);
-makeDrop(document.getElementById('drop-cloth'), clothInput);
-
-tryBtn.addEventListener('click', async()=>{
-  if(!personFile || !clothFile){
-    alert('Please upload both person image and garment image.');
-    return;
-  }
-
-  status.textContent = 'Generating...';
-  tryBtn.disabled = true;
-  saveBtn.disabled = true;
-  downloadBtn.disabled = true;
-  resultDisplay.innerHTML = '<span>Generating...</span>';
-
-  const formData = new FormData();
-  formData.append('person', personFile);
-  formData.append('cloth', clothFile);
-
-  try{
-    const response = await fetch(API_ENDPOINT,{
-      method:'POST',
-      body:formData
-    });
-
-    if(!response.ok){
-      const text = await response.text();
-      throw new Error(`Server error: ${response.status} ${text}`);
-    }
-
-    const blob = await response.blob();
-    resultImageUrl = URL.createObjectURL(blob);
-
-    resultDisplay.innerHTML = `<img class="result-image" src="${resultImageUrl}" alt="Generated try-on result">`;
-    status.textContent = 'Completed';
-
-    saveBtn.disabled = false;
-    downloadBtn.disabled = false;
-
-  }catch(error){
-    console.error(error);
-    alert('Error: ' + error.message);
-    status.textContent = 'Error';
-    resetResultPlaceholder();
-  }finally{
-    tryBtn.disabled = false;
-  }
-});
-
-downloadBtn.addEventListener('click',()=>{
-  if(!resultImageUrl) return;
-
-  const link = document.createElement('a');
-  link.href = resultImageUrl;
-  link.download = 'virtual-try-on-result.png';
-  link.click();
-});
-
-function getWardrobe(){
-  return JSON.parse(localStorage.getItem('wardrobe') || '[]');
-}
-
-function saveWardrobe(items){
-  localStorage.setItem('wardrobe', JSON.stringify(items));
-}
-
-function isValidUrl(value){
-  try{
-    new URL(value);
-    return true;
-  }catch{
-    return false;
-  }
-}
-
-saveBtn.addEventListener('click',()=>{
-  if(!resultImageUrl){
-    alert('Generate a try-on result first.');
-    return;
-  }
-
-  const storeUrl = storeLinkInput.value.trim();
-
-  if(!storeUrl){
-    alert('Please paste the store link before saving.');
-    return;
-  }
-
-  if(!isValidUrl(storeUrl)){
-    alert('Please enter a valid store link.');
-    return;
-  }
-
-  const items = getWardrobe();
-
-  items.unshift({
-    title:'Saved Look',
-    storeUrl,
-    resultImage:resultImageUrl,
-    createdAt:new Date().toISOString()
-  });
-
-  saveWardrobe(items);
-  renderWardrobe();
-
-  status.textContent = 'Saved';
-});
-
-function deleteWardrobeItem(index){
-  const items = getWardrobe();
-  items.splice(index,1);
-  saveWardrobe(items);
-  renderWardrobe();
-}
-
-function renderWardrobe(){
-  const items = getWardrobe();
-
-  if(items.length === 0){
-    wardrobeGrid.innerHTML = `<div class="empty">Saved results appear here</div>`;
-    return;
-  }
-
-  wardrobeGrid.innerHTML = items.map((item,index)=>`
-    <div class="wardrobe-card">
-      <img src="${item.resultImage}" alt="Saved result">
-
-      <div class="wardrobe-info">
-        <strong>${item.title}</strong>
-        <a href="${item.storeUrl}" target="_blank" rel="noopener noreferrer">Open link</a>
-        <button class="ghost" type="button" onclick="deleteWardrobeItem(${index})">Delete</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderBrands(){
-  brandsGrid.innerHTML = recommendedBrands.map((brand)=>`
-    <div class="brand-card">
-      <div class="brand-preview ${brand.name === 'MISBHV' ? 'small-logo' : ''}">${brand.display}</div>
-
-      <div class="brand-info">
-        <strong>${brand.name}</strong>
-        <a href="${brand.url}" target="_blank" rel="noopener noreferrer">Open store</a>
-      </div>
-    </div>
-  `).join('');
-}
-
-/* Small chrome cursor */
-const customCursor = document.getElementById('custom-cursor');
-
-document.addEventListener('mousemove', (event)=>{
-  if(!customCursor) return;
-
-  customCursor.classList.add('is-visible');
-  customCursor.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0) translate(-3px, -3px)`;
-});
-
-document.addEventListener('mouseleave', ()=>{
-  if(customCursor){
-    customCursor.classList.remove('is-visible');
-  }
-});
-
-document.addEventListener('mousedown', ()=>{
-  if(customCursor){
-    customCursor.classList.add('is-clicking');
-  }
-});
-
-document.addEventListener('mouseup', ()=>{
-  if(customCursor){
-    customCursor.classList.remove('is-clicking');
-  }
-});
-
-document.querySelectorAll('button, a, input, label, .drop').forEach((element)=>{
-  element.addEventListener('mouseenter', ()=>{
-    if(customCursor){
-      customCursor.classList.add('is-hovering');
-    }
-  });
-
-  element.addEventListener('mouseleave', ()=>{
-    if(customCursor){
-      customCursor.classList.remove('is-hovering');
-    }
-  });
-});
-
-renderWardrobe();
-renderBrands();
-</script>
-
+    </section>
+  </main>
+
+  <!-- Page footer -->
+  <div class="footer">
+    © 2026 Virtual Try On
+  </div>
+
+  <script src="./script.js"></script>
 </body>
+
 </html>

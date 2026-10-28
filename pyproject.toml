@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virtual-try-on"
+version = "1.0.0"
+description = "Web application for virtual clothing try-on using the CP-VTON+ model."
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "Flask",
+    "Flask-Cors",
+    "Flask-SQLAlchemy",
+    "Pillow",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "opencv-python",
+    "numpy",
+    "transformers",
+    "safetensors",
+    "fashn-human-parser",
+]
+
+test = [
+    "pytest",
+]
+
+all = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "opencv-python",
+    "numpy",
+    "transformers",
+    "safetensors",
+    "fashn-human-parser",
+    "pytest",
+]
+
+[tool.setuptools]
+packages = []
